@@ -1,17 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Dope.Option where
+module Dope.Logic.Option where
 
 import Dope.Model.Common as Common
-import Dope.Model.Player (Player (Player))
-import qualified Dope.Model.Player as Player
-import Dope.Model.Site (Site (Site))
-import qualified Dope.Model.Site as Site
 import Dope.State.GameState as GameState
+import Dope.Model.DeriveJson
 import Data.Label
 import Control.Concurrent.STM
 import qualified Data.Map as Map
 
-data Optional a = Some a | None deriving (Show, Read)
+data Optional a 
+    = Some a 
+    | None 
+    deriving (Show, Read)
+$(derive makeJSON ''Optional)
 
 instance Eq a => Eq (Optional a) where
     _ == _ = True
@@ -25,4 +26,7 @@ data Option
     | AbortTrade
     | BribePolice (Optional Integer)
     | SnitchFriend PlayerName
+    deriving (Show, Eq)
+$(derive makeJSON ''Option)
+
 

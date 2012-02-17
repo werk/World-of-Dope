@@ -1,11 +1,9 @@
-module Protocol where
+{-# LANGUAGE TemplateHaskell #-}
+module Dope.Server.Protocol where
 
-import Dope
-import State
-import ClientData
-import Data.DeriveTH
-import Data.Derive.JSON
-import Text.JSON
+import Dope.View.PlayerIntrospection (PlayerIntrospection)
+import Dope.Logic.Option
+import Dope.Model.DeriveJson
 
 
 data Request
@@ -13,22 +11,23 @@ data Request
     | NewPlayer String
     | Act Option
     | Quit
-    deriving (Show, Read, Eq)
+    deriving (Show, Eq)
 $(derive makeJSON ''Request)
     
-data Response
-    = OK PlayerIntrospection [Option]
-    | Error Error
-    | Bye
-    deriving (Show, Read, Eq)
-$(derive makeJSON ''Response)
-
 data Error
     = InvalidRequest
     | IllegalAct String PlayerIntrospection [Option]
     | PlayerDoesNotExist
     | NotLoggedIn
     | PlayerAlreadyExists
-    deriving (Show, Read, Eq)
+    deriving (Show, Eq)
 $(derive makeJSON ''Error)
+
+data Response
+    = OK PlayerIntrospection [Option]
+    | Failure Error
+    | Bye
+    deriving (Show, Eq)
+$(derive makeJSON ''Response)
+
 

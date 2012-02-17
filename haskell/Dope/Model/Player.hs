@@ -17,3 +17,4 @@ data Player = Player {
     } deriving (Show, Eq)
 $(mkLabels [''Player])
 $(derive makeJSON ''Player)
+

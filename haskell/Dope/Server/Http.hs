@@ -1,8 +1,10 @@
 module Dope.Server.Http where
 
 import Dope.Logic.Act
-import Dope.Server.Protocol
+import qualified Dope.View.PlayerIntrospection as PlayerIntrospection
+import qualified Dope.Server.Protocol as Protocol
 import qualified Dope.State.GameState as GameState
+import Dope.Model.Player (Player)
 import Dope.State.GameState (GameState (GameState))
 
 import qualified Data.ByteString.Char8 as S
@@ -31,7 +33,6 @@ configuration = Conf {
     port = 8080,
     validator = Nothing,
     logAccess = Nothing,
-    tls = Nothing,
     timeout = 10
     }
 
@@ -60,16 +61,17 @@ process stateVar = do
     playerVar <- liftIO $ getPlayerVar stateVar playerName
     case playerVar of 
         Just playerVar -> do
-            (error, player, possibilities) <- liftIO $ actAndReportOptions stateVar playerVar
+            (error, player, possibilities) <- liftIO $ actAndReportOptions stateVar playerVar option
+            let p = PlayerIntrospection.fromPlayer player
             case error of
-                Nothing -> respond (Protocol.OK (toPlayerIntrospection player) possibilities)
-                Just reason -> respond (Protocol.Error (IllegalAct reason player possibilities))
+                Nothing -> respond (Protocol.OK p possibilities)
+                Just reason -> respond (Protocol.Failure (Protocol.IllegalAct reason p possibilities))
         Nothing -> 
-            respond (Protocol.Error PlayerDoesNotExist)
+            respond (Protocol.Failure Protocol.PlayerDoesNotExist)
 
 -- TODO The player TVar should be associated with the login session.
-getPlayerVar :: TVar GameState -> String -> Maybe (TVar Player)
+getPlayerVar :: TVar GameState -> String -> IO (Maybe (TVar Player))
 getPlayerVar stateVar name = atomically $ do
     state <- readTVar stateVar
-    return $ Map.lookup playerName (get GameState.playerVars state)
+    return $ Map.lookup name (get GameState.playerVars state)
     
