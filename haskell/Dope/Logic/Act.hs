@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, TypeOperators, KindSignatures, ScopedTypeVariables #-}
-module Dope where
+module Dope.Logic.Act where
 
 import Control.Monad
 import Control.Concurrent.STM

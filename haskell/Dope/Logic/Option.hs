@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Dope.Option where
+module Dope.Logic.Option where
 
 import Dope.Model.Common as Common
 import Dope.Model.Player (Player (Player))
