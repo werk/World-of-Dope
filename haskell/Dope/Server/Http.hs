@@ -33,13 +33,14 @@ configuration = Conf {
     port = 8080,
     validator = Nothing,
     logAccess = Nothing,
+    tls = Nothing,
     timeout = 10
     }
 
 handler :: TVar GameState -> ServerPartT IO H.Response
 handler stateVar = msum [
     dir "play" $ nullDir >> method [GET, POST] >> process stateVar,
-    nullDir >> method [GET] >> serveFile (asContentType "text/html") "Client/index2.html"
+    nullDir >> method [GET] >> serveFile (asContentType "text/html") "../html/index.html"
     ]
 
 parameter :: JSON a => String -> H.Request -> ServerPartT IO a
