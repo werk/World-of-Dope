@@ -33,7 +33,6 @@ configuration = Conf {
     port = 8080,
     validator = Nothing,
     logAccess = Nothing,
-    tls = Nothing,
     timeout = 10
     }
 
@@ -75,4 +74,4 @@ getPlayerVar :: TVar GameState -> String -> IO (Maybe (TVar Player))
 getPlayerVar stateVar name = atomically $ do
     state <- readTVar stateVar
     return $ Map.lookup name (get GameState.playerVars state)
-    
+
