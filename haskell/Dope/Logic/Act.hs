@@ -100,3 +100,13 @@ act playerVar option stateVar = do
 taxameter :: Position -> Position -> Integer 
 taxameter (Position x1 y1) (Position x2 y2) = fromIntegral $ abs (x2 - x1) + abs (y2 - y1)
 
+
+actAndReportOptions :: TVar GameState -> TVar Player -> IO (Maybe String, Player, [Option])
+actAndReportOptions stateVar playerVar = do
+    state <- readTVar stateVar
+    error <- act playerVar option stateVar
+    player <- readTVar playerVar
+    state <- readTVar stateVar
+    possibilities <- options player state
+    return (error, player, possibilities)
+
