@@ -23,14 +23,22 @@ import Data.Map (Map)
 -----------------------------
 -- GameState
 -----------------------------
-
+    
 newGameState :: IO (TVar GameState)
-newGameState = atomically $ do
-    let jail = Site "The Prison" Jail (Position 0 0) []
-    let smokey = Site "Smokey Joe's" Club (Position 4 4) []
-    let sams = Site "Sams Bar" Club (Position 2 6) []
-    siteVars <- makeSiteVars [jail, smokey, sams]
-    newTVar $ GameState Map.empty siteVars
+newGameState = do
+    stateVar <- atomically $ do
+        let jail = Site "The Prison" Jail (Position 0 0) []
+        let smokey = Site "Smokey Joe's" Club (Position 4 4) []
+        let sams = Site "Sams Bar" Club (Position 2 6) []
+        siteVars <- makeSiteVars [jail, smokey, sams]
+        newTVar $ GameState Map.empty siteVars
+    atomically $ addSomePlayers stateVar ["werk", "ahnfelt"]
+    return stateVar
+
+addSomePlayers :: TVar GameState -> [PlayerName] -> STM ()
+addSomePlayers stateVar playerNames = do
+    forM_ playerNames $ \name -> newPlayerVar stateVar name    
+
     
 -----------------------------
 -- Player
