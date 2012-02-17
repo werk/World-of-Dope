@@ -1,6 +1,23 @@
 {-# LANGUAGE TemplateHaskell, TypeOperators, KindSignatures, ScopedTypeVariables #-}
 module Dope.Logic.Act where
 
+import Dope.Logic.Option
+import Dope.Model.Common
+
+import qualified Dope.Model.Player as Player
+import Dope.Model.Player (Player (Player))
+
+import qualified Dope.Model.Site as Site
+import Dope.Model.Site (Site (Site))
+
+import qualified Dope.Model.DrugBag as DrugBag
+import Dope.Model.DrugBag (DrugBag (DrugBag))
+
+import qualified Dope.State.GameState as GameState
+import Dope.State.GameState (GameState (GameState))
+
+import qualified Dope.State.Operation as Operation
+
 import Control.Monad
 import Control.Concurrent.STM
 import System.Random
@@ -11,32 +28,29 @@ import Data.Map (Map)
 import Data.List (find)
 import Prelude hiding ((.), id)
 
-import Dope.State.GameState
-import Dope.Option
 
 options :: Player -> GameState -> STM [Option]
 options player state =
-    case (get playerSituation player, get playerPlace player) of
+    case (get Player.situation player, get Player.place player) of
         (Idle, place) -> 
             case place of 
                 Street position -> do
-                    sites <- mapM readTVar (Map.elems (get stateSiteVars state))
-                    let site = case find (\s -> get sitePosition s == position) sites of
-                            Just site -> [Enter (get siteName site)]
+                    sites <- mapM readTVar (Map.elems (get GameState.siteVars state))
+                    let site = case find (\s -> get Site.position s == position) sites of
+                            Just site -> [Enter (get Site.name site)]
                             Nothing -> []
                     return (TakeACap None : DealDrugs None : site)
                 Inside siteName -> do
-                    case Map.lookup siteName (get stateSiteVars state) of
+                    case Map.lookup siteName (get GameState.siteVars state) of
                         Just siteVar -> do
                             site <- readTVar siteVar
-                            case get siteType site of
+                            case get Site.type site of
                                 Jail -> return []
                                 Club -> do
-                                    guestNames <- getPlayerNames (get siteGuestVars site)
-                                    return (Exit : map Trade guestNames)
+                                    return (Exit : map Trade (get Site.guests site))
                         Nothing -> return []
         (Busted, place) -> do
-            let vendorNames = map (get drugBagSeller) (get playerDrugBags player)
+            let vendorNames = map (get DrugBag.seller) (get Player.drugBags player)
             return (BribePolice None : map SnitchFriend vendorNames)
         (Trading otherPlayer, place) -> return [AbortTrade]
     
@@ -49,51 +63,51 @@ act playerVar option stateVar = do
         then do 
             case option of
                 TakeACap (Some destination) -> do
-                    let Street origin = get playerPlace player
+                    let Street origin = get Player.place player
                     let expense = taxameter origin destination
-                    let money = get playerMoney player
+                    let money = get Player.money player
                     if money >= expense
                         then do
-                            let player' = set playerPlace (Street destination) $ 
-                                    set playerMoney (money - expense) player
+                            let player' = set Player.place (Street destination) $ 
+                                    set Player.money (money - expense) player
                             writeTVar playerVar player'
                             return Nothing
                         else return $ Just "You ain't got the money"
                 TakeACap None -> return $ Just "Take a cap, where to"
                 Enter siteName -> do
-                    movePlayer state (get playerName player) (Inside siteName)
+                    Operation.movePlayer state (get Player.name player) (Inside siteName)
                     return Nothing
                 Exit -> do
-                    let Inside siteName = get playerPlace player
-                    case Map.lookup siteName (get stateSiteVars state) of
+                    let Inside siteName = get Player.place player
+                    case Map.lookup siteName (get GameState.siteVars state) of
                         Just siteVar -> do
                             site <- readTVar siteVar
-                            movePlayer state (get playerName player) (Street (get sitePosition site))
+                            Operation.movePlayer state (get Player.name player) (Street (get Site.position site))
                             return Nothing
                         Nothing -> error "Error in options - site should exist"
                 DealDrugs (Some index) -> do
-                    let drugBags = get playerDrugBags player
+                    let drugBags = get Player.drugBags player
                     if index < 0 || index >= length drugBags
                         then return $ Just "Stop hallucinating."
                         else do
                             let drugBag = drugBags !! index
-                            let units = get drugBagUnits drugBag
-                            let drugBag' = set drugBagUnits (units - 1) drugBag
+                            let units = get DrugBag.units drugBag
+                            let drugBag' = set DrugBag.units (units - 1) drugBag
                             when (units < 1) $ error "Nothing left in the bag of drugs to sell"
                             let drugBags' = if units == 1
                                     then take units drugBags ++ drop (units + 1) drugBags
                                     else take units drugBags ++ [drugBag'] ++ drop (units + 1) drugBags
-                            writeTVar playerVar (set playerDrugBags drugBags' player)
+                            writeTVar playerVar (set Player.drugBags drugBags' player)
                             return Nothing
                 DealDrugs None -> return $ Just "How much though?"
                 Trade partnerName -> return $ Just "Trading is not yet implemented"
                 AbortTrade -> return $ Just "Trading is not yet implemented"
                 BribePolice (Some money) -> do
-                    movePlayer state (get playerName player) (Inside "Jail")
+                    Operation.movePlayer state (get Player.name player) (Inside "Jail")
                     return Nothing
                 BribePolice None -> return $ Just "I wonder how much dough will turn the tides..."
                 SnitchFriend friendName -> do
-                    movePlayer state (get playerName player) (Inside "Jail")
+                    Operation.movePlayer state (get Player.name player) (Inside "Jail")
                     return Nothing
         else return $ Just "Option unavailable"
 

@@ -2,10 +2,6 @@
 module Dope.Logic.Option where
 
 import Dope.Model.Common as Common
-import Dope.Model.Player (Player (Player))
-import qualified Dope.Model.Player as Player
-import Dope.Model.Site (Site (Site))
-import qualified Dope.Model.Site as Site
 import Dope.State.GameState as GameState
 import Data.Label
 import Control.Concurrent.STM
@@ -25,4 +21,5 @@ data Option
     | AbortTrade
     | BribePolice (Optional Integer)
     | SnitchFriend PlayerName
+    deriving Eq
 

@@ -1,5 +1,13 @@
 module Dope.Server.Http where
 
+import Dope.State.Operation
+
+import qualified Dope.Model.Player as Player
+import Dope.Model.Player (Player (Player))
+
+import qualified Dope.Model.Site as Site
+import Dope.Model.Site (Site (Site))
+
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 import Happstack.Server as H
@@ -14,8 +22,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Label
 import Text.JSON
-
-import Dope.State.Operation
 
 main :: IO ()
 main = do
