@@ -2,6 +2,7 @@
 module Dope.Server.Protocol where
 
 import Dope.View.PlayerIntrospection (PlayerIntrospection)
+import Dope.Server.Session (SessionId)
 import Dope.Logic.Option
 import Dope.Model.DeriveJson
 
@@ -24,7 +25,7 @@ data Error
 $(derive makeJSON ''Error)
 
 data Response
-    = OK PlayerIntrospection [Option]
+    = OK SessionId PlayerIntrospection [Option]
     | Failure Error
     | Bye
     deriving (Show, Eq)

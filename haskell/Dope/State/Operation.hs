@@ -64,6 +64,12 @@ newPlayerVar stateVar name = do
             return (Just var)
 
 
+getPlayerVar :: TVar GameState -> String -> IO (Maybe (TVar Player))
+getPlayerVar stateVar name = atomically $ do
+    state <- readTVar stateVar
+    return $ Map.lookup name (get GameState.playerVars state)
+
+
 -- | Maintains the invariant that a player is only in one place at a time,
 -- | even though this fact is represented in multiple places.
 movePlayer :: GameState -> PlayerName -> Place -> STM ()

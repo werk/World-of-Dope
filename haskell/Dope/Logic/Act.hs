@@ -28,6 +28,12 @@ import Data.Map (Map)
 import Data.List (find)
 import Prelude hiding ((.), id)
 
+optionsIO :: TVar Player -> TVar GameState -> IO ([Option], Player)
+optionsIO playerVar stateVar = atomically $ do
+    player <- readTVar playerVar
+    state <- readTVar stateVar
+    posibilities <- options player state
+    return (posibilities, player)
 
 options :: Player -> GameState -> STM [Option]
 options player state =
@@ -53,6 +59,9 @@ options player state =
             let vendorNames = map (get DrugBag.seller) (get Player.drugBags player)
             return (BribePolice None : map SnitchFriend vendorNames)
         (Trading otherPlayer, place) -> return [AbortTrade]
+
+actIO :: TVar Player -> Option -> TVar GameState -> IO (Maybe String)
+actIO playerVar option stateVar = atomically $ act playerVar option stateVar
     
 act :: TVar Player -> Option -> TVar GameState -> STM (Maybe String)
 act playerVar option stateVar = do

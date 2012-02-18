@@ -2,8 +2,10 @@ module Dope.Server.Http where
 
 import Dope.Logic.Act
 import qualified Dope.View.PlayerIntrospection as PlayerIntrospection
-import qualified Dope.Server.Protocol as Protocol
+import Dope.Server.Protocol
+import Dope.Server.Session
 import qualified Dope.State.GameState as GameState
+import qualified Dope.State.Operation as Operation
 import Dope.Model.Player (Player)
 import Dope.State.GameState (GameState (GameState))
 
@@ -13,7 +15,7 @@ import Happstack.Server as H
 import Control.Monad
 import Control.Monad.Trans
 import Control.Applicative.Error (maybeRead)
-import Control.Concurrent.STM
+import Control.Concurrent.STM (TVar)
 import System.FilePath (joinPath, takeExtension) 
 import qualified System.Directory as D
 import Data.List (intercalate)
@@ -26,8 +28,9 @@ import Dope.State.Operation
 
 main :: IO ()
 main = do
+    sessionsVar <- newSessionsVar
     stateVar <- newGameState
-    simpleHTTP configuration (handler stateVar)
+    simpleHTTP configuration (handler sessionsVar stateVar)
 
 configuration = Conf { 
     port = 8080,
@@ -36,9 +39,10 @@ configuration = Conf {
     timeout = 10
     }
 
-handler :: TVar GameState -> ServerPartT IO H.Response
-handler stateVar = msum [
-    dir "play" $ nullDir >> method [GET, POST] >> process stateVar,
+handler :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
+handler sessionsVar stateVar = msum [
+    dir "login" $ nullDir >> method [GET, POST] >> login sessionsVar stateVar ,
+    dir "play" $ nullDir >> method [GET, POST] >> play sessionsVar stateVar,
     nullDir >> method [GET] >> serveFile (asContentType "text/html") "../html/index.html"
     ]
 
@@ -53,25 +57,34 @@ parameter name request = do
 respond :: JSON a => a -> ServerPartT IO H.Response
 respond value = return $ toResponse $ encode $ showJSON $ value
 
-process :: TVar GameState -> ServerPartT IO H.Response
-process stateVar = do
+login :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
+login sessionsVar stateVar = do
     request <- askRq
-    option <- parameter "option" request
-    playerName <- parameter "player" request
-    playerVar <- liftIO $ getPlayerVar stateVar playerName
+    playerName <- parameter "playerName" request
+    -- TODO password
+    playerVar <- liftIO $ Operation.getPlayerVar stateVar playerName
     case playerVar of 
         Just playerVar -> do
+            sessionId <- liftIO $ newSession sessionsVar playerVar
+            (possibilities, player) <- liftIO $ optionsIO playerVar stateVar
+            let p = PlayerIntrospection.fromPlayer player
+            respond $ OK sessionId p possibilities
+        Nothing -> 
+            respond $ Failure PlayerDoesNotExist
+
+play :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
+play sessionsVar stateVar = do
+    request <- askRq
+    sessionId <- parameter "sessionId" request
+    option <- parameter "option" request
+    pair <- liftIO $ useSession sessionsVar sessionId
+    case pair of 
+        Just (playerVar, nextSessionId) -> do
             (error, player, possibilities) <- liftIO $ actAndReportOptions stateVar playerVar option
             let p = PlayerIntrospection.fromPlayer player
             case error of
-                Nothing -> respond (Protocol.OK p possibilities)
-                Just reason -> respond (Protocol.Failure (Protocol.IllegalAct reason p possibilities))
+                Nothing -> respond $ OK nextSessionId p possibilities
+                Just reason -> respond $ Failure (IllegalAct reason p possibilities)
         Nothing -> 
-            respond (Protocol.Failure Protocol.PlayerDoesNotExist)
-
--- TODO The player TVar should be associated with the login session.
-getPlayerVar :: TVar GameState -> String -> IO (Maybe (TVar Player))
-getPlayerVar stateVar name = atomically $ do
-    state <- readTVar stateVar
-    return $ Map.lookup name (get GameState.playerVars state)
+            respond (Failure NotLoggedIn)
 
