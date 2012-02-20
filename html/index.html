@@ -1,11 +1,127 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>Dope</title>
-    </head>
-    <body>
-        Hello, World!
-    </body>
+<head>
+    <meta charset="utf-8" />
+    <title>Dope</title>
+
+    <style>
+        .error {
+            color: #8b0000;
+            font-style: italic;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+
+    <script src="js/flapjax-2.1.js"></script>
+    <script src="js/jquery-1.7.1.min.js"></script>
+    <script>
+        function loader() {
+            function makeLoginRequest(name) {
+                return {
+                    url: '/login/', fields: {"playerName": JSON.stringify(name)},
+                    request: "get", response: 'json'
+                }
+            }
+
+            function makeActRequest(sessionId, option) {
+                return {
+                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
+                    request: "get", response: 'json'
+                }
+            }
+
+            function showLoginView() {
+                $("#gameView").hide();
+                $("#loginView").show();
+            }
+
+            function setupLoginView() {
+                var loginNameB = extractValueB("loginName");
+                var loginRequestsE = $E('loginButton', 'click')
+                        .snapshotE(loginNameB)
+                        .mapE(makeLoginRequest);
+                var loginResponseE = getWebServiceObjectE(loginRequestsE);
+
+                var loginDataE = loginResponseE
+                        .filterE(function (r) {return r.OK != undefined})
+                        .mapE(function (r) {return r.OK});
+                var errorsE = loginResponseE
+                        .filterE(function (r) {return r.Failure != undefined})
+                        .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
+                insertDomE(errorsE, "loginErrorText");
+                return loginDataE;
+            }
+
+            function showPlayView(data) {
+                $("#loginView").hide();
+                $("#gameView").show();
+
+                var capPositionX = extractValueB("capPositionX");
+                var capPositionY = extractValueB("capPositionY");
+
+                /*
+                function makeCapRequest() {
+                    var option;
+                    makeActRequest(data[0], option)
+                }
+                var capRequestsE = $E('takeACapButton', 'click')
+                        .mapE(makeActRequest());
+                var playResponsesE = getWebServiceObjectE(capRequestsE);
+                var playResponseDataB =
+
+                //sessionId, player, options = data[0], data[1].PlayerIntrospection._player, data[2]
+
+                */
+            }
+
+            var loginDataE = setupLoginView();
+            showLoginView();
+
+            loginDataE.mapE(function (data) {
+                console.dir(data);
+                showPlayView(data);
+            });
+
+         }
+    </script>
+
+</head>
+<body onload="loader()" id="body">
+
+<div id="loginView">
+    <fieldset>
+        <legend>Login:</legend>
+        <div><label for="loginName">Name: </label><input id="loginName" type="text"></div>
+        <div><button id="loginButton">Login</button></div>
+        <div class="error"><span id="loginErrorText"></span></div>
+    </fieldset>
+</div>
+
+<div id="gameView">
+    <h1>World of Dope</h1>
+
+    <fieldset>
+        <legend>Act:</legend>
+        <div>
+            <label for="capPositionX">X: </label><input id="capPositionX" type="text">
+            <label for="capPositionY">Y: </label><input id="capPositionY" type="text">
+            <button id="takeACapButton">Take a cap</button>
+        </div>
+
+        <div class="error"><span id="playErrorText"></span></div>
+    </fieldset>
+
+    <div id="playerView">
+        <table id="playerTable">
+            <tr><td>Name: </td><td><span id="playerName"></span></td>
+            <tr><td>Situation: </td><td><span id="playerSituation"></span></td>
+            <tr><td>Place: </td><td><span id="playerPlace"></span></td>
+            <tr><td>Money: </td><td><span id="playerMoney"></span></td>
+        </table>
+    </div>
+</div>
+
+</body>
 </html>
 

@@ -43,7 +43,8 @@ handler :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Respo
 handler sessionsVar stateVar = msum [
     dir "login" $ nullDir >> method [GET, POST] >> login sessionsVar stateVar ,
     dir "play" $ nullDir >> method [GET, POST] >> play sessionsVar stateVar,
-    nullDir >> method [GET] >> serveFile (asContentType "text/html") "../html/index.html"
+    --nullDir >> method [GET] >> serveFile (asContentType "text/html") "../html/index.html",
+    serveDirectory EnableBrowsing ["index.html"] "../html/"
     ]
 
 parameter :: JSON a => String -> H.Request -> ServerPartT IO a
