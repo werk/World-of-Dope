@@ -14,6 +14,9 @@
         #capPositionX, #capPositionY {
             width: 20px;
         }
+        .positionField {
+            width: 30px;
+        }
     </style>
 
     <script src="js/flapjax-2.1.js"></script>
@@ -51,10 +54,25 @@
                         .mapE(function (r) {return r.OK});
                 var errorsE = loginResponseE
                         .filterE(function (r) {return r.Failure != undefined})
-                        .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
+                        .mapE(function (r) {return showConstructor(r.Failure[0])});
                 insertDomE(errorsE, "loginErrorText");
                 $("#loginName").focus();
                 return loginDataE;
+            }
+
+            function showConstructorName(c) {
+                return Object.keys(c)[0];
+            }
+
+            function showConstructor(c) {
+                var name = showConstructorName(c);
+                var arguments = c[name];
+                var argumentsText = "";
+                $.each(arguments, function(index, a) {
+                    argumentsText += "" + a + " "
+                });
+                var text = name + " " + argumentsText;
+                return text.slice(0, text.length - 1);
             }
 
             function showPlayView(data) {
@@ -66,7 +84,7 @@
                 var capPositionY = extractValueB("capPositionY").liftB(parseInt);
 
                 function makeCapRequest() {
-                    var option = {TakeACap:[{Some:[{Position: [capPositionX.valueNow(), capPositionY.valueNow()]}]}]};
+                    var option = {TakeACap:[{Parameter:[{Position: [capPositionX.valueNow(), capPositionY.valueNow()]}]}]};
                     return makeActRequest(sessionIdB.valueNow(), option);
                 }
                 var capRequestsE = $E('takeACapButton', 'click')
@@ -78,7 +96,7 @@
                         .mapE(function (r) {return r.OK});
                 var failureE = responsesE
                         .filterE(function (r) {return r.Failure != undefined})
-                        .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
+                        .mapE(function (r) {return showConstructor(r.Failure[0])});
 
                 insertDomE(failureE, "playErrorText");
 
@@ -88,17 +106,34 @@
                 var optionsB = okB.liftB(function (data) {return data[2]});
 
                 insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
-                //playerB.liftB(function (d) {console.dir(d); return 0;});
 
                 var playerNameB = playerB.liftB(function (p) {return p._name});
                 var playerSituationB = playerB.liftB(function (p) {return p._situation});
                 var playerMoneyB = playerB.liftB(function (p) {return p._money});
                 var playerPlaceB = playerB.liftB(function (p) {return p._place});
+                var playerDrugBagsB = playerB.liftB(function (p) {return p._drugBags});
 
                 insertDomB(playerNameB, "playerName");
                 insertDomB(playerSituationB.liftB(JSON.stringify), "playerSituation");
                 insertDomB(playerMoneyB.liftB(function (m) {return m + "$"}), "playerMoney");
                 insertDomB(playerPlaceB.liftB(JSON.stringify), "playerPlace");
+
+                playerDrugBagsB.liftB(function (bags) {
+                    var table = $('#drugBagsTable');
+                    table.empty();
+                    $.each(bags, function(index, o) {
+                        var bag = o.DrugBag;
+                        var text = "" + bag._quantity + "g " + showConstructor(bag._drug) + " from " + bag._seller;
+                        var row = $("<tr><td>" + text + "</td><td></td>");
+                        table.append(row);
+                    });
+                });
+
+                optionsB.liftB(function (options) {
+                    console.dir(options);
+                    optionInput(options);
+                    return 0;
+                });
             }
 
             var loginDataE = setupLoginView();
@@ -108,7 +143,34 @@
                 showPlayView(data);
             });
 
-         }
+            function optionInput(options) {
+                var list = $("#optionList");
+                list.empty();
+                $.each(options, function(index, option) {
+                    var name = showConstructorName(option);
+                    var arguments = option[name];
+                    var label = $("<label>");
+                    label.append($("<span>" + name + " </span>"))
+                    $.each(arguments, function(index, a) {
+                        if (a.Requested) {
+                            var type = a.Requested[0];
+                            if (type == "Int") {
+                                var field = $("<input type='text'>");
+                                label.append(field);
+                            } else if (type == "Position") {
+                                var fields = $("(<input class='positionField' type='text'>, <input class='positionField' type='text'>)");
+                                label.append(fields);
+                            }
+                        } else {
+                            label.append($("<span>" + a + "</span>"));
+                        }
+                    });
+                    var line = $("<div>");
+                    line.append(label);
+                    list.append(line);
+                })
+            }
+        }
     </script>
 
 </head>
@@ -117,7 +179,7 @@
 <div id="loginView">
     <fieldset>
         <legend>Login:</legend>
-        <div><label for="loginName">Name: </label><input id="loginName" type="text"></div>
+        <div><label>Name: <input id="loginName" type="text"></label></div>
         <div><button id="loginButton">Login</button></div>
         <div class="options"><span id="optionsText"></span></div>
         <div class="error"><span id="loginErrorText"></span></div>
@@ -129,6 +191,7 @@
 
     <fieldset>
         <legend>Act:</legend>
+        <div id="optionList"></div>
         <div>Take a cap to
             (<input id="capPositionX" type="text">, <input id="capPositionY" type="text">)
             <button id="takeACapButton">Do it</button>
@@ -137,14 +200,24 @@
         <div class="error"><span id="playErrorText"></span></div>
     </fieldset>
 
-    <div id="playerView">
-        <table id="playerTable">
-            <tr><td>Name: </td><td><span id="playerName"></span></td>
-            <tr><td>Situation: </td><td><span id="playerSituation"></span></td>
-            <tr><td>Place: </td><td><span id="playerPlace"></span></td>
-            <tr><td>Money: </td><td><span id="playerMoney"></span></td>
-        </table>
-    </div>
+    <fieldset>
+        <legend>You:</legend>
+        <div id="playerView">
+            <table id="playerTable">
+                <tr><td>Name: </td><td><span id="playerName"></span></td>
+                <tr><td>Situation: </td><td><span id="playerSituation"></span></td>
+                <tr><td>Place: </td><td><span id="playerPlace"></span></td>
+                <tr><td>Money: </td><td><span id="playerMoney"></span></td>
+            </table>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>Drugs:</legend>
+        <div id="drugBagsView">
+            <table id="drugBagsTable"></table>
+        </div>
+    </fieldset>
 </div>
 
 </body>

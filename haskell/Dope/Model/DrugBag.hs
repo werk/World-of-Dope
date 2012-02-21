@@ -7,10 +7,10 @@ import Dope.Model.DeriveJson
 import Data.Label
 
 data DrugBag = DrugBag {
+    _quantity :: Int,
     _drug :: Drug,
     _seller :: PlayerName,
-    _purity :: Double,
-    _units :: Int
+    _purity :: Double
     } deriving (Show, Eq)
 $(mkLabels [''DrugBag])
 $(derive makeJSON ''DrugBag)

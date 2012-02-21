@@ -45,7 +45,7 @@ options player state =
                     let site = case find (\s -> get Site.position s == position) sites of
                             Just site -> [Enter (get Site.name site)]
                             Nothing -> []
-                    return (TakeACap None : DealDrugs None : site)
+                    return (TakeACap Requested : DealDrugs Requested : site)
                 Inside siteName -> do
                     case Map.lookup siteName (get GameState.siteVars state) of
                         Just siteVar -> do
@@ -57,7 +57,7 @@ options player state =
                         Nothing -> return []
         (Busted, place) -> do
             let vendorNames = map (get DrugBag.seller) (get Player.drugBags player)
-            return (BribePolice None : map SnitchFriend vendorNames)
+            return (BribePolice Requested : map SnitchFriend vendorNames)
         (Trading otherPlayer, place) -> return [AbortTrade]
 
 actIO :: TVar Player -> Option -> TVar GameState -> IO (Maybe String)
@@ -71,7 +71,7 @@ act playerVar option stateVar = do
     if elem option possibilities
         then do 
             case option of
-                TakeACap (Some destination) -> do
+                TakeACap (Parameter destination) -> do
                     let Street origin = get Player.place player
                     let expense = taxameter origin destination
                     let money = get Player.money player
@@ -82,7 +82,7 @@ act playerVar option stateVar = do
                             writeTVar playerVar player'
                             return Nothing
                         else return $ Just "You ain't got the money"
-                TakeACap None -> return $ Just "Take a cap, where to"
+                TakeACap Requested -> return $ Just "Take a cap, where to"
                 Enter siteName -> do
                     Operation.movePlayer state (get Player.name player) (Inside siteName)
                     return Nothing
@@ -94,27 +94,27 @@ act playerVar option stateVar = do
                             Operation.movePlayer state (get Player.name player) (Street (get Site.position site))
                             return Nothing
                         Nothing -> error "Error in options - site should exist"
-                DealDrugs (Some index) -> do
+                DealDrugs (Parameter index) -> do
                     let drugBags = get Player.drugBags player
                     if index < 0 || index >= length drugBags
                         then return $ Just "Stop hallucinating."
                         else do
                             let drugBag = drugBags !! index
-                            let units = get DrugBag.units drugBag
-                            let drugBag' = set DrugBag.units (units - 1) drugBag
-                            when (units < 1) $ error "Nothing left in the bag of drugs to sell"
-                            let drugBags' = if units == 1
-                                    then take units drugBags ++ drop (units + 1) drugBags
-                                    else take units drugBags ++ [drugBag'] ++ drop (units + 1) drugBags
+                            let quantity = get DrugBag.quantity drugBag
+                            let drugBag' = set DrugBag.quantity (quantity - 1) drugBag
+                            when (quantity < 1) $ error "Nothing left in the bag of drugs to sell"
+                            let drugBags' = if quantity == 1
+                                    then take quantity drugBags ++ drop (quantity + 1) drugBags
+                                    else take quantity drugBags ++ [drugBag'] ++ drop (quantity + 1) drugBags
                             writeTVar playerVar (set Player.drugBags drugBags' player)
                             return Nothing
-                DealDrugs None -> return $ Just "How much though?"
+                DealDrugs Requested -> return $ Just "How much though?"
                 Trade partnerName -> return $ Just "Trading is not yet implemented"
                 AbortTrade -> return $ Just "Trading is not yet implemented"
-                BribePolice (Some money) -> do
+                BribePolice (Parameter money) -> do
                     Operation.movePlayer state (get Player.name player) (Inside "Jail")
                     return Nothing
-                BribePolice None -> return $ Just "I wonder how much dough will turn the tides..."
+                BribePolice Requested -> return $ Just "I wonder how much dough will turn the tides..."
                 SnitchFriend friendName -> do
                     Operation.movePlayer state (get Player.name player) (Inside "Jail")
                     return Nothing

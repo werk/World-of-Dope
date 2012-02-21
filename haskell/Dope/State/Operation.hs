@@ -56,7 +56,8 @@ newPlayerVar stateVar name = do
             let siteVars = (Map.elems (get GameState.siteVars state))
             jail <- getJail siteVars
             let jailPosition = get Site.position jail
-            let player = Player name Idle (Street jailPosition) 100 [] True
+            let cokeBag = DrugBag 10 Cocaine "ahnfelt" 0.75
+            let player = Player name Idle (Street jailPosition) 100 [cokeBag] True
             var <- newTVar player
             let playerVars = Map.insert name var (get GameState.playerVars state)
             let state' = set GameState.playerVars playerVars state
