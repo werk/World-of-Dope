@@ -28,12 +28,8 @@
             }
 
             function makeActRequest(sessionId, option) {
-                console.dir(sessionId);
-                console.dir(option);
-                // TODO integers are make into strings with JSON.stringify. The server cannot handle this.
-                var optionString = "{\"TakeACap\":[{\"Some\":[{\"Position\":[2,3]}]}]}";
                 return {
-                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: optionString},
+                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
                     request: "get", response: 'json'
                 }
             }
@@ -66,8 +62,8 @@
                 $("#gameView").show();
 
 
-                var capPositionX = extractValueB("capPositionX");
-                var capPositionY = extractValueB("capPositionY");
+                var capPositionX = extractValueB("capPositionX").liftB(parseInt);
+                var capPositionY = extractValueB("capPositionY").liftB(parseInt);
 
                 function makeCapRequest() {
                     var option = {TakeACap:[{Some:[{Position: [capPositionX.valueNow(), capPositionY.valueNow()]}]}]};
@@ -84,20 +80,31 @@
                         .filterE(function (r) {return r.Failure != undefined})
                         .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
 
+                insertDomE(failureE, "playErrorText");
 
                 var okB = okE.startsWith(data);
                 var sessionIdB = okB.liftB(function (data) {return data[0]});
-                var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player});
+                var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player.Player});
                 var optionsB = okB.liftB(function (data) {return data[2]});
 
                 insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
+                //playerB.liftB(function (d) {console.dir(d); return 0;});
+
+                var playerNameB = playerB.liftB(function (p) {return p._name});
+                var playerSituationB = playerB.liftB(function (p) {return p._situation});
+                var playerMoneyB = playerB.liftB(function (p) {return p._money});
+                var playerPlaceB = playerB.liftB(function (p) {return p._place});
+
+                insertDomB(playerNameB, "playerName");
+                insertDomB(playerSituationB.liftB(JSON.stringify), "playerSituation");
+                insertDomB(playerMoneyB.liftB(function (m) {return m + "$"}), "playerMoney");
+                insertDomB(playerPlaceB.liftB(JSON.stringify), "playerPlace");
             }
 
             var loginDataE = setupLoginView();
             showLoginView();
 
             loginDataE.mapE(function (data) {
-                console.dir(data);
                 showPlayView(data);
             });
 
