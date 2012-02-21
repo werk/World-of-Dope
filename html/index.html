@@ -11,6 +11,9 @@
             font-weight: bold;
             text-align: center;
         }
+        #capPositionX, #capPositionY {
+            width: 20px;
+        }
     </style>
 
     <script src="js/flapjax-2.1.js"></script>
@@ -25,8 +28,12 @@
             }
 
             function makeActRequest(sessionId, option) {
+                console.dir(sessionId);
+                console.dir(option);
+                // TODO integers are make into strings with JSON.stringify. The server cannot handle this.
+                var optionString = "{\"TakeACap\":[{\"Some\":[{\"Position\":[2,3]}]}]}";
                 return {
-                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
+                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: optionString},
                     request: "get", response: 'json'
                 }
             }
@@ -50,6 +57,7 @@
                         .filterE(function (r) {return r.Failure != undefined})
                         .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
                 insertDomE(errorsE, "loginErrorText");
+                $("#loginName").focus();
                 return loginDataE;
             }
 
@@ -57,22 +65,32 @@
                 $("#loginView").hide();
                 $("#gameView").show();
 
+
                 var capPositionX = extractValueB("capPositionX");
                 var capPositionY = extractValueB("capPositionY");
 
-                /*
                 function makeCapRequest() {
-                    var option;
-                    makeActRequest(data[0], option)
+                    var option = {TakeACap:[{Some:[{Position: [capPositionX.valueNow(), capPositionY.valueNow()]}]}]};
+                    return makeActRequest(sessionIdB.valueNow(), option);
                 }
                 var capRequestsE = $E('takeACapButton', 'click')
-                        .mapE(makeActRequest());
-                var playResponsesE = getWebServiceObjectE(capRequestsE);
-                var playResponseDataB =
+                        .mapE(makeCapRequest);
 
-                //sessionId, player, options = data[0], data[1].PlayerIntrospection._player, data[2]
+                var responsesE = getWebServiceObjectE(capRequestsE);
+                var okE = responsesE
+                        .filterE(function (r) {return r.OK != undefined})
+                        .mapE(function (r) {return r.OK});
+                var failureE = responsesE
+                        .filterE(function (r) {return r.Failure != undefined})
+                        .mapE(function (r) {return Object.keys(r.Failure[0])[0]});
 
-                */
+
+                var okB = okE.startsWith(data);
+                var sessionIdB = okB.liftB(function (data) {return data[0]});
+                var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player});
+                var optionsB = okB.liftB(function (data) {return data[2]});
+
+                insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
             }
 
             var loginDataE = setupLoginView();
@@ -94,6 +112,7 @@
         <legend>Login:</legend>
         <div><label for="loginName">Name: </label><input id="loginName" type="text"></div>
         <div><button id="loginButton">Login</button></div>
+        <div class="options"><span id="optionsText"></span></div>
         <div class="error"><span id="loginErrorText"></span></div>
     </fieldset>
 </div>
@@ -103,10 +122,9 @@
 
     <fieldset>
         <legend>Act:</legend>
-        <div>
-            <label for="capPositionX">X: </label><input id="capPositionX" type="text">
-            <label for="capPositionY">Y: </label><input id="capPositionY" type="text">
-            <button id="takeACapButton">Take a cap</button>
+        <div>Take a cap to
+            (<input id="capPositionX" type="text">, <input id="capPositionY" type="text">)
+            <button id="takeACapButton">Do it</button>
         </div>
 
         <div class="error"><span id="playErrorText"></span></div>
