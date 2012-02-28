@@ -1,3 +1,5 @@
+module Dope.Logic.City where
+
 import Data.List (intercalate, permutations)
 import System.Random
 import Control.Monad.State
