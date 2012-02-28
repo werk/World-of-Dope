@@ -58,6 +58,8 @@ parameter name request = do
 respond :: JSON a => a -> ServerPartT IO H.Response
 respond value = return $ toResponse $ encode $ showJSON $ value
 
+tiles = [[True, True, True], [True, False, True], [True, True, True]]
+
 login :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
 login sessionsVar stateVar = do
     request <- askRq
@@ -69,7 +71,7 @@ login sessionsVar stateVar = do
             sessionId <- liftIO $ newSession sessionsVar playerVar
             (possibilities, player) <- liftIO $ optionsIO playerVar stateVar
             let p = PlayerIntrospection.fromPlayer player
-            respond $ OK sessionId p possibilities
+            respond $ OK sessionId p possibilities tiles
         Nothing -> 
             respond $ Failure "" PlayerDoesNotExist
 
@@ -84,8 +86,8 @@ play sessionsVar stateVar = do
             (error, player, possibilities) <- liftIO $ actAndReportOptions stateVar playerVar option
             let p = PlayerIntrospection.fromPlayer player
             case error of
-                Nothing -> respond $ OK nextSessionId p possibilities
+                Nothing -> respond $ OK nextSessionId p possibilities tiles
                 Just reason -> respond $ Failure sessionId (IllegalAct reason)
         Nothing -> 
-            respond (Failure NotLoggedIn)
+            respond (Failure sessionId NotLoggedIn)
 

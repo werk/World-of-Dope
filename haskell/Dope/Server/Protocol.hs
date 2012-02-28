@@ -19,14 +19,14 @@ $(derive makeJSON ''Request)
 data Error
     = InvalidRequest
     | IllegalAct String
-    | PlayerDoesNotExist
     | NotLoggedIn
+    | PlayerDoesNotExist
     | PlayerAlreadyExists
     deriving (Show, Eq)
 $(derive makeJSON ''Error)
 
 data Response
-    = OK SessionId PlayerIntrospection [Option]
+    = OK SessionId PlayerIntrospection [Option] [[Bool]]
     | Failure SessionId Error
     | Bye
     deriving (Show, Eq)

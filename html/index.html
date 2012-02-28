@@ -17,227 +17,325 @@
     .positionField {
         width: 30px;
     }
+    table.map td {
+        width: 10px;
+        height: 10px;
+    }
+    table.map td.tileRoad {
+        background-color: darkgray;
+    }
+    table.map td.tileBuilding {
+        background-color: cornsilk;
+    }
+    table.map td.tileRoad.tilePlayer {
+        background-color: coral;
+    }
+    table.map td.tileBuilding.tilePlayer {
+        background-color: lightcoral;
+    }
 </style>
 <script src="js/flapjax-2.1.js"></script>
 <script src="js/jquery-1.7.1.min.js"></script>
 <script>
 
-function makeLoginRequest(name) {
-    return {
-        url: '/login/', fields: {"playerName": JSON.stringify(name)},
-        request: "get", response: 'json'
-    }
-}
-
-function makeActRequest(sessionId, option) {
-    return {
-        url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
-        request: "get", response: 'json'
-    }
-}
-
-
-function showConstructorName(c) {
-    return Object.keys(c)[0];
-}
-
-function showConstructor(c) {
-    var name = showConstructorName(c);
-    var arguments = c[name];
-    var argumentsText = "";
-    $.each(arguments, function(index, a) {
-        argumentsText += "" + a + " "
-    });
-    var text = name + " " + argumentsText;
-    return text.slice(0, text.length - 1);
-}
-
-function showLoginView() {
-    $("#gameView").hide();
-    $("#loginView").show();
-    $("#loginName").focus();
-}
-
-function defined(x) {return x !== undefined}
-
-function splitResponses(responsesE) {
-    var dataE = responsesE.mapE(function (r) {
-        if (r.OK) {
-            var player = r.OK[1].PlayerIntrospection._player.Player;
-            var options = r.OK[2];
-            return {player: player, options: options};
+    function makeLoginRequest(name) {
+        return {
+            url: '/login/', fields: {"playerName": JSON.stringify(name)},
+            request: "get", response: 'json'
         }
-        return undefined;
-    }).filterE(defined);
+    }
 
-    var errorE = responsesE.mapE(function (r) {
-        if (r.Failure) return r.Failure[1];
-        return undefined;
-    }).filterE(defined);
-
-    var sessionE = responsesE.mapE(function (r) {
-        if (r.OK) return r.OK[0];
-        if (r.Failure) return r.Failure[0];
-        return undefined;
-    }).filterE(defined);
-
-    return {sessionE: sessionE, dataE: dataE, errorE: errorE}
-}
-
-function setupLoginView() {
-    var loginNameB = extractValueB("loginName");
-    var loginRequestsE = clicksE('loginButton')
-            .snapshotE(loginNameB)
-            .mapE(makeLoginRequest);
-    return getWebServiceObjectE(loginRequestsE);
-}
+    function makeActRequest(sessionId, option) {
+        return {
+            url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
+            request: "get", response: 'json'
+        }
+    }
 
 
-function setupPlayView(loginRequestE) {
+    function showConstructorName(c) {
+        return Object.keys(c)[0];
+    }
 
-    insertDomE(failureE, "playErrorText");
-
-    var okB = okE.startsWith(data);
-    var sessionIdB = okB.liftB(function (data) {return data[0]});
-    var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player.Player});
-    var optionsB = okB.liftB(function (data) {return data[2]});
-
-    insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
-
-    var playerNameB = playerB.liftB(function (p) {return p._name});
-    var playerSituationB = playerB.liftB(function (p) {return p._situation});
-    var playerMoneyB = playerB.liftB(function (p) {return p._money});
-    var playerPlaceB = playerB.liftB(function (p) {return p._place});
-    var playerDrugBagsB = playerB.liftB(function (p) {return p._drugBags});
-
-    insertDomB(playerNameB, "playerName");
-    insertDomB(playerSituationB.liftB(JSON.stringify), "playerSituation");
-    insertDomB(playerMoneyB.liftB(function (m) {return m + "$"}), "playerMoney");
-    insertDomB(playerPlaceB.liftB(JSON.stringify), "playerPlace");
-
-    playerDrugBagsB.liftB(function (bags) {
-        var table = $('#drugBagsTable');
-        table.empty();
-        $.each(bags, function(index, o) {
-            var bag = o.DrugBag;
-            var text = "" + bag._quantity + "g " + showConstructor(bag._drug) + " from " + bag._seller;
-            var row = $("<tr><td>" + text + "</td><td></td>");
-            table.append(row);
-        });
-    });
-
-    var chosenOptionEE = optionsB.liftB(function (options) {
-        console.dir(options);
-        return refreshOptionView(options);
-    });
-    var chosenOptionE = switchE(chosenOptionEE);
-}
-
-function setupOptionsView() {
-    refreshOptionView()
-}
-
-function refreshOptionView(options) {
-    var list = $("#optionList");
-    list.empty();
-    var optionEs = [];
-    $.each(options, function(index, option) {
-        var name = showConstructorName(option);
-        var arguments = option[name];
-        vart label = $("<label>");
-        label.append($("<span>" + name + " </span>"));
-        var parameterBs = [];
+    function showConstructor(c) {
+        var name = showConstructorName(c);
+        var arguments = c[name];
+        var argumentsText = "";
         $.each(arguments, function(index, a) {
-            if (a.Requested) {
-                var type = a.Requested[0];
-                if (type == "Int") {
-                    var field = $("<input type='text'>");
-                    label.append(field);
-                    var intB = extractValueB(field[0]).liftB(parseInt).liftB(parameter);
-                    parameterBs.push(intB);
-                } else if (type == "Position") {
-                    var fieldX = $("<input class='positionField' type='text'>");
-                    var fieldY = $("<input class='positionField' type='text'>");
-                    label.append(fieldX);
-                    label.append($("<span>, </span>"));
-                    label.append(fieldY);
-                    var positionB = liftB(function(x, y) {
-                        return parameter({Position: [x, y]})
-                    }, extractValueE(fieldX[0]), extractValueE(fieldY[0]));
-                    parameterBs.push(positionB);
-                }
-            } else {
-                label.append($("<span>" + a + "</span>"));
-                parameterBs.push(constantB(a));
-            }
+            argumentsText += "" + a + " "
         });
-        var line = $("<div>");
-        var button = $("<button>Do it</button>");
-        label.append(button);
-        function buildOption() {
-            var option = {};
-            option[name] = Array.prototype.slice.call(arguments);
+        var text = name + " " + argumentsText;
+        return text.slice(0, text.length - 1);
+    }
+
+    function showLoginView() {
+        $("#gameView").hide();
+        $("#loginView").show();
+        $("#loginName").focus();
+    }
+
+    function showGameView() {
+        $("#loginView").hide();
+        $("#gameView").show();
+    }
+
+    function parameter(v) {
+        return {Parameter: [v]};
+    }
+
+    function defined(x) {return x !== undefined}
+
+    function splitResponses(responseE) {
+        var dataE = responseE.mapE(function (r) {
+            if (r.OK) {
+                var player = r.OK[1].PlayerIntrospection._player.Player;
+                var options = r.OK[2];
+                var tiles = r.OK[3];
+                return {player: player, options: options, tiles: tiles};
+            }
+            return undefined;
+        }).filterE(defined);
+
+        var errorE = responseE.mapE(function (r) {
+            if (r.Failure) return r.Failure[1];
+            return undefined;
+        }).filterE(defined);
+
+        var sessionIdE = responseE.mapE(function (r) {
+            if (r.OK) return r.OK[0];
+            if (r.Failure) return r.Failure[0];
+            return undefined;
+        }).filterE(defined);
+
+        return {sessionIdE: sessionIdE, dataE: dataE, errorE: errorE}
+    }
+
+    function splitErrors(errorE) {
+        var loginErrorE = errorE.filterE(function (e) {
+            return e.PlayerDoesNotExist;
+        });
+        var createPlayerErrorE = errorE.filterE(function (e) {
+            return e.PlayerAlreadyExists;
+        });
+        var playErrorE = errorE.filterE(function (e) {
+            return !e.PlayerDoesNotExist && !e.PlayerAlreadyExists;
+        });
+        return {loginErrorE: loginErrorE, createPlayerErrorE: createPlayerErrorE, playErrorE: playErrorE};
+    }
+
+    // -> Event Response
+    function setupLoginView() {
+        var loginNameB = extractValueB("loginName");
+        var loginRequestsE = clicksE('loginButton')
+                .snapshotE(loginNameB)
+                .mapE(makeLoginRequest);
+        return getWebServiceObjectE(loginRequestsE);
+    }
+
+    function setupPlayView(playRequestReceiverE, sessionIdB, dataE, errorE) {
+        var playerE = dataE.mapE(function (data) {return data.player});
+        var optionsE = dataE.mapE(function (data) {return data.options});
+        var tilesE = dataE.mapE(function (data) {return data.tiles});
+
+        setupPlayerView(playerE);
+        var errorMessageE = mergeE(dataE.constantE(""), errorE.mapE(showConstructor));
+        insertDomE(errorMessageE, "playErrorText");
+
+        var chosenOptionEE = optionsE.mapE(function (options) {
+            return refreshOptionView(options);
+        });
+        var chosenOptionE = switchE(chosenOptionEE);
+        chosenOptionE.mapE(sendActRequest);
+
+        function sendActRequest(option) {
+            var request = makeActRequest(sessionIdB.valueNow(), option);
+            playRequestReceiverE.sendEvent(request)
         }
-        var optionB = liftB.apply(this, [buildOption].concat(parameterBs));
-        var optionE = clicksE(button[0]).snapshotE(optionB);
-        optionEs.push(optionE);
-        line.append(label);
-        list.append(line);
-    });
-    return mergeE.apply(this, optionEs);
-}
 
-function parameter(v) {
-    return {Parameter: [v]};
-}
+        function sendMoveRequest(x, y) {
+            var option = {"TakeACap":[parameter({"Position":[x, y]})]};
+            sendActRequest(option);
+        }
+        setupMapView(dataE, sendMoveRequest);
 
-function loader() {
-    var loginResponseE = setupLoginView();
-    setupPlayView(loginResponseE);
-    showLoginView();
-}
+    }
+    
+    function setupPlayerView(playerE) {
+        var playerNameE = playerE.mapE(function (p) {return p._name});
+        var playerSituationE = playerE.mapE(function (p) {return p._situation});
+        var playerMoneyE = playerE.mapE(function (p) {return p._money});
+        var playerPlaceE = playerE.mapE(function (p) {return p._place});
+        var playerDrugBagsE = playerE.mapE(function (p) {return p._drugBags});
+
+        insertDomE(playerNameE, "playerName");
+        insertDomE(playerSituationE.mapE(JSON.stringify), "playerSituation");
+        insertDomE(playerMoneyE.mapE(function (m) {return m + "$"}), "playerMoney");
+        insertDomE(playerPlaceE.mapE(JSON.stringify), "playerPlace");
+
+        playerDrugBagsE.mapE(function (bags) {
+            var table = $('#drugBagsTable');
+            table.empty();
+            $.each(bags, function(index, o) {
+                var bag = o.DrugBag;
+                var text = "" + bag._quantity + "g " + showConstructor(bag._drug) + " from " + bag._seller;
+                var row = $("<tr><td>" + text + "</td><td></td>");
+                table.append(row);
+            });
+        });
+    }
+
+    function setupMapView(dataE, moveTo) {
+        dataE.mapE(function(data) {
+            var place = data.player._place;
+            var position = place[showConstructorName(place)][0].Position;
+            var table = $("<table cellspacing='0'>");
+            table.addClass("map");
+            $.each(data.tiles, function(y, row) {
+                var tr = $("<tr>");
+                table.append(tr);
+                $.each(row, function(x, tile) {
+                    var td = $("<td>");
+                    tr.append(td);
+                    td.addClass(tile ? "tileRoad" : "tileBuilding");
+                    if (position[0] == x && position[1] == y) td.addClass("tilePlayer");
+                    td.on('click', function () {moveTo(x, y)});
+                });
+            });
+            $("#mapView")
+                    .empty()
+                    .append(table);
+        })
+    }
+
+    // [Option None] -> Event (Option Some)
+    function refreshOptionView(options) {
+        var list = $("#optionList");
+        list.empty();
+        var optionEs = [];
+        $.each(options, function(index, option) {
+            var name = showConstructorName(option);
+            var arguments = option[name];
+            var line = $("<div>");
+            line.append($("<span>" + name + " </span>"));
+            var parameterBs = [];
+            $.each(arguments, function(index, a) {
+                if (a.Requested) {
+                    var type = a.Requested[0];
+                    if (type == "Int") {
+                        var field = $("<input type='text'>");
+                        line.append(field);
+                        var intB = extractValueB(field[0]).liftB(parseInt).liftB(parameter);
+                        parameterBs.push(intB);
+                    } else if (type == "Position") {
+                        var fieldX = $("<input class='positionField' type='text'>");
+                        var fieldY = $("<input class='positionField' type='text'>");
+                        line.append(fieldX);
+                        line.append($("<span>, </span>"));
+                        line.append(fieldY);
+                        var positionB = liftB(function(x, y) {
+                            return parameter({Position: [parseInt(x), parseInt(y)]})
+                        }, extractValueB(fieldX[0]), extractValueB(fieldY[0]));
+                        parameterBs.push(positionB);
+                    }
+                } else {
+                    line.append($("<span>" + a + "</span>"));
+                    parameterBs.push(constantB(a));
+                }
+            });
+            var button = $("<button>Do it</button>");
+            line.append(button);
+            function buildOption() {
+                var option = {};
+                option[name] = Array.prototype.slice.call(arguments);
+                return option;
+            }
+            var optionB = liftB.apply(this, [buildOption].concat(parameterBs));
+            var optionE = clicksE(button[0]).snapshotE(optionB);
+            optionEs.push(optionE);
+            list.append(line);
+        });
+        return mergeE.apply(this, optionEs);
+    }
+
+    function get(field) {
+        return function (object) {
+            return object[field];
+        }
+    }
+
+    function loader() {
+        var loginResponseE = setupLoginView();
+        var playRequestReceiverE = receiverE();
+        var playResponseE = getWebServiceObjectE(playRequestReceiverE);
+        var responseE = mergeE(loginResponseE, playResponseE);
+
+        var responseSplit = splitResponses(responseE);
+        var sessionIdE = responseSplit.sessionIdE;
+        var dataE = responseSplit.dataE;
+        var errorE = responseSplit.errorE;
+        var sessionIdB = sessionIdE.startsWith(undefined);
+
+        var errorSplitE = splitErrors(errorE);
+        var loginErrorE = errorSplitE.loginErrorE;
+        var createPlayerErrorE = errorSplitE.createPlayerErrorE;
+        var playErrorE = errorSplitE.playErrorE;
+
+        insertDomE(loginErrorE.mapE(showConstructor), "loginErrorText");
+        loginErrorE.mapE(showLoginView);
+        playErrorE.mapE(showGameView);
+        dataE.mapE(showGameView);
+
+        setupPlayView(playRequestReceiverE, sessionIdB, dataE, playErrorE);
+        showLoginView();
+    }
 </script>
 </head>
 <body onload="loader()" id="body">
 
-<div id="loginView">
-    <fieldset>
-        <legend>Login:</legend>
-        <div><label>Name: <input id="loginName" type="text"></label></div>
-        <div><button id="loginButton">Login</button></div>
-        <div class="options"><span id="optionsText"></span></div>
-        <div class="error"><span id="loginErrorText"></span></div>
-    </fieldset>
-</div>
+    <div id="loginView">
+        <fieldset>
+            <legend>Login:</legend>
+            <div><label>Name: <input id="loginName" type="text"></label></div>
+            <div><button id="loginButton">Login</button></div>
+            <div class="error"><span id="loginErrorText"></span></div>
+        </fieldset>
+    </div>
 
-<div id="gameView">
-    <h1>World of Dope</h1>
+    <div id="gameView">
+        <h1>World of Dope</h1>
 
-    <fieldset>
-        <legend>Act:</legend>
-        <div id="optionList"></div>
-        <div class="error"><span id="playErrorText"></span></div>
-    </fieldset>
+        <fieldset>
+            <legend>Act:</legend>
+            <div id="optionList"></div>
+            <div class="error"><span id="playErrorText"></span></div>
+        </fieldset>
 
-    <fieldset>
-        <legend>You:</legend>
-        <div id="playerView">
-            <table id="playerTable">
-                <tr><td>Name: </td><td><span id="playerName"></span></td>
-                <tr><td>Situation: </td><td><span id="playerSituation"></span></td>
-                <tr><td>Place: </td><td><span id="playerPlace"></span></td>
-                <tr><td>Money: </td><td><span id="playerMoney"></span></td>
-            </table>
-        </div>
-    </fieldset>
+        <fieldset>
+            <legend>You:</legend>
+            <div id="playerView">
+                <table id="playerTable">
+                    <tr><td>Name: </td><td><span id="playerName"></span></td>
+                    <tr><td>Situation: </td><td><span id="playerSituation"></span></td>
+                    <tr><td>Place: </td><td><span id="playerPlace"></span></td>
+                    <tr><td>Money: </td><td><span id="playerMoney"></span></td>
+                </table>
+            </div>
+        </fieldset>
 
-    <fieldset>
-        <legend>Drugs:</legend>
-        <div id="drugBagsView">
-            <table id="drugBagsTable"></table>
-        </div>
-    </fieldset>
-</div>
+        <fieldset>
+            <legend>Drugs:</legend>
+            <div id="drugBagsView">
+                <table id="drugBagsTable"></table>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Map:</legend>
+            <div id="mapView">
+            </div>
+        </fieldset>
+
+    </div>
 
 </body>
 </html>
