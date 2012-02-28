@@ -84,17 +84,24 @@ fillMap position = do
             let position' = position .+. direction
             fillMap position'
 
-generateMap width height = do
-    g <- newStdGen
-    let tiles = emptyMap width height
-    let City tiles' _ = flip execState (City tiles g) $ fillMap (width `div` 2, height `div` 2)
-    return tiles'
+generateMapIO width height = do
+    generator <- newStdGen
+    return (generateMap generator width height)
+
+generateMap generator width height =
+    let tiles = emptyMap width height in
+    let City tiles' _ = flip execState (City tiles generator) $ fillMap (width `div` 2, height `div` 2) in
+    tiles'
 
 newtype CityMap = CityMap (Array (Int, Int) Bool)
 
-generateMap' width height = do
-    tiles <- generateMap width height
-    return (CityMap (expandMap tiles))
+generateMap' generator width height =
+    let tiles = generateMap generator width height in
+    CityMap (expandMap tiles)
+
+generateMapIO' width height = do
+    generator <- newStdGen
+    return (generateMap' generator width height)
 
 expandMap tiles = 
     let (width, height) = snd (bounds tiles) .+. (1, 1) in

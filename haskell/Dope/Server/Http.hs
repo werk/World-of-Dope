@@ -58,7 +58,7 @@ parameter name request = do
 respond :: JSON a => a -> ServerPartT IO H.Response
 respond value = return $ toResponse $ encode $ showJSON $ value
 
-tiles = [[True, True, True], [True, False, True], [True, True, True]]
+tiles = generateMap (mkStdGen 42) 30 20
 
 login :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
 login sessionsVar stateVar = do
