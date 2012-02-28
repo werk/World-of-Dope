@@ -9,6 +9,7 @@ import qualified Dope.State.Operation as Operation
 import Dope.Model.Player (Player)
 import Dope.State.GameState (GameState (GameState))
 import Dope.Logic.City
+import System.Random (mkStdGen)
 
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
