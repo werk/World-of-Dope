@@ -11,13 +11,14 @@ data Request
     = UsePlayer String
     | NewPlayer String
     | Act Option
+    | NoAct
     | Quit
     deriving (Show, Eq)
 $(derive makeJSON ''Request)
     
 data Error
     = InvalidRequest
-    | IllegalAct String PlayerIntrospection [Option]
+    | IllegalAct String
     | PlayerDoesNotExist
     | NotLoggedIn
     | PlayerAlreadyExists
@@ -26,7 +27,7 @@ $(derive makeJSON ''Error)
 
 data Response
     = OK SessionId PlayerIntrospection [Option]
-    | Failure Error
+    | Failure SessionId Error
     | Bye
     deriving (Show, Eq)
 $(derive makeJSON ''Response)

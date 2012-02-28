@@ -71,7 +71,7 @@ login sessionsVar stateVar = do
             let p = PlayerIntrospection.fromPlayer player
             respond $ OK sessionId p possibilities
         Nothing -> 
-            respond $ Failure PlayerDoesNotExist
+            respond $ Failure "" PlayerDoesNotExist
 
 play :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
 play sessionsVar stateVar = do
@@ -85,7 +85,7 @@ play sessionsVar stateVar = do
             let p = PlayerIntrospection.fromPlayer player
             case error of
                 Nothing -> respond $ OK nextSessionId p possibilities
-                Just reason -> respond $ Failure (IllegalAct reason p possibilities)
+                Just reason -> respond $ Failure sessionId (IllegalAct reason)
         Nothing -> 
             respond (Failure NotLoggedIn)
 

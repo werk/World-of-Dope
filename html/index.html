@@ -1,178 +1,202 @@
 <!doctype html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <title>Dope</title>
+<meta charset="utf-8" />
+<title>Dope</title>
 
-    <style>
-        .error {
-            color: #8b0000;
-            font-style: italic;
-            font-weight: bold;
-            text-align: center;
-        }
-        #capPositionX, #capPositionY {
-            width: 20px;
-        }
-        .positionField {
-            width: 30px;
-        }
-    </style>
+<style>
+    .error {
+        color: #8b0000;
+        font-style: italic;
+        font-weight: bold;
+        text-align: center;
+    }
+    #capPositionX, #capPositionY {
+        width: 20px;
+    }
+    .positionField {
+        width: 30px;
+    }
+</style>
+<script src="js/flapjax-2.1.js"></script>
+<script src="js/jquery-1.7.1.min.js"></script>
+<script>
 
-    <script src="js/flapjax-2.1.js"></script>
-    <script src="js/jquery-1.7.1.min.js"></script>
-    <script>
-        function loader() {
-            function makeLoginRequest(name) {
-                return {
-                    url: '/login/', fields: {"playerName": JSON.stringify(name)},
-                    request: "get", response: 'json'
+function makeLoginRequest(name) {
+    return {
+        url: '/login/', fields: {"playerName": JSON.stringify(name)},
+        request: "get", response: 'json'
+    }
+}
+
+function makeActRequest(sessionId, option) {
+    return {
+        url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
+        request: "get", response: 'json'
+    }
+}
+
+
+function showConstructorName(c) {
+    return Object.keys(c)[0];
+}
+
+function showConstructor(c) {
+    var name = showConstructorName(c);
+    var arguments = c[name];
+    var argumentsText = "";
+    $.each(arguments, function(index, a) {
+        argumentsText += "" + a + " "
+    });
+    var text = name + " " + argumentsText;
+    return text.slice(0, text.length - 1);
+}
+
+function showLoginView() {
+    $("#gameView").hide();
+    $("#loginView").show();
+    $("#loginName").focus();
+}
+
+function defined(x) {return x !== undefined}
+
+function splitResponses(responsesE) {
+    var dataE = responsesE.mapE(function (r) {
+        if (r.OK) {
+            var player = r.OK[1].PlayerIntrospection._player.Player;
+            var options = r.OK[2];
+            return {player: player, options: options};
+        }
+        return undefined;
+    }).filterE(defined);
+
+    var errorE = responsesE.mapE(function (r) {
+        if (r.Failure) return r.Failure[1];
+        return undefined;
+    }).filterE(defined);
+
+    var sessionE = responsesE.mapE(function (r) {
+        if (r.OK) return r.OK[0];
+        if (r.Failure) return r.Failure[0];
+        return undefined;
+    }).filterE(defined);
+
+    return {sessionE: sessionE, dataE: dataE, errorE: errorE}
+}
+
+function setupLoginView() {
+    var loginNameB = extractValueB("loginName");
+    var loginRequestsE = clicksE('loginButton')
+            .snapshotE(loginNameB)
+            .mapE(makeLoginRequest);
+    return getWebServiceObjectE(loginRequestsE);
+}
+
+
+function setupPlayView(loginRequestE) {
+
+    insertDomE(failureE, "playErrorText");
+
+    var okB = okE.startsWith(data);
+    var sessionIdB = okB.liftB(function (data) {return data[0]});
+    var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player.Player});
+    var optionsB = okB.liftB(function (data) {return data[2]});
+
+    insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
+
+    var playerNameB = playerB.liftB(function (p) {return p._name});
+    var playerSituationB = playerB.liftB(function (p) {return p._situation});
+    var playerMoneyB = playerB.liftB(function (p) {return p._money});
+    var playerPlaceB = playerB.liftB(function (p) {return p._place});
+    var playerDrugBagsB = playerB.liftB(function (p) {return p._drugBags});
+
+    insertDomB(playerNameB, "playerName");
+    insertDomB(playerSituationB.liftB(JSON.stringify), "playerSituation");
+    insertDomB(playerMoneyB.liftB(function (m) {return m + "$"}), "playerMoney");
+    insertDomB(playerPlaceB.liftB(JSON.stringify), "playerPlace");
+
+    playerDrugBagsB.liftB(function (bags) {
+        var table = $('#drugBagsTable');
+        table.empty();
+        $.each(bags, function(index, o) {
+            var bag = o.DrugBag;
+            var text = "" + bag._quantity + "g " + showConstructor(bag._drug) + " from " + bag._seller;
+            var row = $("<tr><td>" + text + "</td><td></td>");
+            table.append(row);
+        });
+    });
+
+    var chosenOptionEE = optionsB.liftB(function (options) {
+        console.dir(options);
+        return refreshOptionView(options);
+    });
+    var chosenOptionE = switchE(chosenOptionEE);
+}
+
+function setupOptionsView() {
+    refreshOptionView()
+}
+
+function refreshOptionView(options) {
+    var list = $("#optionList");
+    list.empty();
+    var optionEs = [];
+    $.each(options, function(index, option) {
+        var name = showConstructorName(option);
+        var arguments = option[name];
+        vart label = $("<label>");
+        label.append($("<span>" + name + " </span>"));
+        var parameterBs = [];
+        $.each(arguments, function(index, a) {
+            if (a.Requested) {
+                var type = a.Requested[0];
+                if (type == "Int") {
+                    var field = $("<input type='text'>");
+                    label.append(field);
+                    var intB = extractValueB(field[0]).liftB(parseInt).liftB(parameter);
+                    parameterBs.push(intB);
+                } else if (type == "Position") {
+                    var fieldX = $("<input class='positionField' type='text'>");
+                    var fieldY = $("<input class='positionField' type='text'>");
+                    label.append(fieldX);
+                    label.append($("<span>, </span>"));
+                    label.append(fieldY);
+                    var positionB = liftB(function(x, y) {
+                        return parameter({Position: [x, y]})
+                    }, extractValueE(fieldX[0]), extractValueE(fieldY[0]));
+                    parameterBs.push(positionB);
                 }
+            } else {
+                label.append($("<span>" + a + "</span>"));
+                parameterBs.push(constantB(a));
             }
-
-            function makeActRequest(sessionId, option) {
-                return {
-                    url: '/play/', fields: {sessionId: JSON.stringify(sessionId), option: JSON.stringify(option)},
-                    request: "get", response: 'json'
-                }
-            }
-
-            function showLoginView() {
-                $("#gameView").hide();
-                $("#loginView").show();
-            }
-
-            function setupLoginView() {
-                var loginNameB = extractValueB("loginName");
-                var loginRequestsE = $E('loginButton', 'click')
-                        .snapshotE(loginNameB)
-                        .mapE(makeLoginRequest);
-                var loginResponseE = getWebServiceObjectE(loginRequestsE);
-
-                var loginDataE = loginResponseE
-                        .filterE(function (r) {return r.OK != undefined})
-                        .mapE(function (r) {return r.OK});
-                var errorsE = loginResponseE
-                        .filterE(function (r) {return r.Failure != undefined})
-                        .mapE(function (r) {return showConstructor(r.Failure[0])});
-                insertDomE(errorsE, "loginErrorText");
-                $("#loginName").focus();
-                return loginDataE;
-            }
-
-            function showConstructorName(c) {
-                return Object.keys(c)[0];
-            }
-
-            function showConstructor(c) {
-                var name = showConstructorName(c);
-                var arguments = c[name];
-                var argumentsText = "";
-                $.each(arguments, function(index, a) {
-                    argumentsText += "" + a + " "
-                });
-                var text = name + " " + argumentsText;
-                return text.slice(0, text.length - 1);
-            }
-
-            function showPlayView(data) {
-                $("#loginView").hide();
-                $("#gameView").show();
-
-
-                var capPositionX = extractValueB("capPositionX").liftB(parseInt);
-                var capPositionY = extractValueB("capPositionY").liftB(parseInt);
-
-                function makeCapRequest() {
-                    var option = {TakeACap:[{Parameter:[{Position: [capPositionX.valueNow(), capPositionY.valueNow()]}]}]};
-                    return makeActRequest(sessionIdB.valueNow(), option);
-                }
-                var capRequestsE = $E('takeACapButton', 'click')
-                        .mapE(makeCapRequest);
-
-                var responsesE = getWebServiceObjectE(capRequestsE);
-                var okE = responsesE
-                        .filterE(function (r) {return r.OK != undefined})
-                        .mapE(function (r) {return r.OK});
-                var failureE = responsesE
-                        .filterE(function (r) {return r.Failure != undefined})
-                        .mapE(function (r) {return showConstructor(r.Failure[0])});
-
-                insertDomE(failureE, "playErrorText");
-
-                var okB = okE.startsWith(data);
-                var sessionIdB = okB.liftB(function (data) {return data[0]});
-                var playerB = okB.liftB(function (data) {return data[1].PlayerIntrospection._player.Player});
-                var optionsB = okB.liftB(function (data) {return data[2]});
-
-                insertDomB(optionsB.liftB(JSON.stringify), "optionsText");
-
-                var playerNameB = playerB.liftB(function (p) {return p._name});
-                var playerSituationB = playerB.liftB(function (p) {return p._situation});
-                var playerMoneyB = playerB.liftB(function (p) {return p._money});
-                var playerPlaceB = playerB.liftB(function (p) {return p._place});
-                var playerDrugBagsB = playerB.liftB(function (p) {return p._drugBags});
-
-                insertDomB(playerNameB, "playerName");
-                insertDomB(playerSituationB.liftB(JSON.stringify), "playerSituation");
-                insertDomB(playerMoneyB.liftB(function (m) {return m + "$"}), "playerMoney");
-                insertDomB(playerPlaceB.liftB(JSON.stringify), "playerPlace");
-
-                playerDrugBagsB.liftB(function (bags) {
-                    var table = $('#drugBagsTable');
-                    table.empty();
-                    $.each(bags, function(index, o) {
-                        var bag = o.DrugBag;
-                        var text = "" + bag._quantity + "g " + showConstructor(bag._drug) + " from " + bag._seller;
-                        var row = $("<tr><td>" + text + "</td><td></td>");
-                        table.append(row);
-                    });
-                });
-
-                optionsB.liftB(function (options) {
-                    console.dir(options);
-                    optionInput(options);
-                    return 0;
-                });
-            }
-
-            var loginDataE = setupLoginView();
-            showLoginView();
-
-            loginDataE.mapE(function (data) {
-                showPlayView(data);
-            });
-
-            function optionInput(options) {
-                var list = $("#optionList");
-                list.empty();
-                $.each(options, function(index, option) {
-                    var name = showConstructorName(option);
-                    var arguments = option[name];
-                    var label = $("<label>");
-                    label.append($("<span>" + name + " </span>"))
-                    $.each(arguments, function(index, a) {
-                        if (a.Requested) {
-                            var type = a.Requested[0];
-                            if (type == "Int") {
-                                var field = $("<input type='text'>");
-                                label.append(field);
-                            } else if (type == "Position") {
-                                var fields = $("(<input class='positionField' type='text'>, <input class='positionField' type='text'>)");
-                                label.append(fields);
-                            }
-                        } else {
-                            label.append($("<span>" + a + "</span>"));
-                        }
-                    });
-                    var line = $("<div>");
-                    line.append(label);
-                    list.append(line);
-                })
-            }
+        });
+        var line = $("<div>");
+        var button = $("<button>Do it</button>");
+        label.append(button);
+        function buildOption() {
+            var option = {};
+            option[name] = Array.prototype.slice.call(arguments);
         }
-    </script>
+        var optionB = liftB.apply(this, [buildOption].concat(parameterBs));
+        var optionE = clicksE(button[0]).snapshotE(optionB);
+        optionEs.push(optionE);
+        line.append(label);
+        list.append(line);
+    });
+    return mergeE.apply(this, optionEs);
+}
 
+function parameter(v) {
+    return {Parameter: [v]};
+}
+
+function loader() {
+    var loginResponseE = setupLoginView();
+    setupPlayView(loginResponseE);
+    showLoginView();
+}
+</script>
 </head>
 <body onload="loader()" id="body">
 
@@ -192,11 +216,6 @@
     <fieldset>
         <legend>Act:</legend>
         <div id="optionList"></div>
-        <div>Take a cap to
-            (<input id="capPositionX" type="text">, <input id="capPositionY" type="text">)
-            <button id="takeACapButton">Do it</button>
-        </div>
-
         <div class="error"><span id="playErrorText"></span></div>
     </fieldset>
 

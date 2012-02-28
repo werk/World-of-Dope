@@ -126,7 +126,6 @@ taxameter (Position x1 y1) (Position x2 y2) = fromIntegral $ abs (x2 - x1) + abs
 
 actAndReportOptions :: TVar GameState -> TVar Player -> Option -> IO (Maybe String, Player, [Option])
 actAndReportOptions stateVar playerVar option = atomically $ do
-    state <- readTVar stateVar
     error <- act playerVar option stateVar
     player <- readTVar playerVar
     state <- readTVar stateVar
