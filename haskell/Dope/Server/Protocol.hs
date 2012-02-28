@@ -19,8 +19,8 @@ $(derive makeJSON ''Request)
 data Error
     = InvalidRequest
     | IllegalAct String
-    | PlayerDoesNotExist
     | NotLoggedIn
+    | PlayerDoesNotExist
     | PlayerAlreadyExists
     deriving (Show, Eq)
 $(derive makeJSON ''Error)

@@ -104,8 +104,8 @@ act playerVar option stateVar = do
                             let drugBag' = set DrugBag.quantity (quantity - 1) drugBag
                             when (quantity < 1) $ error "Nothing left in the bag of drugs to sell"
                             let drugBags' = if quantity == 1
-                                    then take quantity drugBags ++ drop (quantity + 1) drugBags
-                                    else take quantity drugBags ++ [drugBag'] ++ drop (quantity + 1) drugBags
+                                    then take index drugBags ++ drop (index + 1) drugBags
+                                    else take index drugBags ++ [drugBag'] ++ drop (index + 1) drugBags
                             writeTVar playerVar (set Player.drugBags drugBags' player)
                             return Nothing
                 DealDrugs Requested -> return $ Just "How much though?"

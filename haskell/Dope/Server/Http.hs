@@ -87,5 +87,5 @@ play sessionsVar stateVar = do
                 Nothing -> respond $ OK nextSessionId p possibilities
                 Just reason -> respond $ Failure sessionId (IllegalAct reason)
         Nothing -> 
-            respond (Failure NotLoggedIn)
+            respond (Failure sessionId NotLoggedIn)
 
