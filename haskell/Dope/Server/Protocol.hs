@@ -26,7 +26,7 @@ data Error
 $(derive makeJSON ''Error)
 
 data Response
-    = OK SessionId PlayerIntrospection [Option]
+    = OK SessionId PlayerIntrospection [Option] [[Bool]]
     | Failure SessionId Error
     | Bye
     deriving (Show, Eq)

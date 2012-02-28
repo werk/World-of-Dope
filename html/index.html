@@ -17,6 +17,13 @@
     .positionField {
         width: 30px;
     }
+    table.map td {
+        width: 10px;
+        height: 10px;
+    }
+    table.map td.tileRoad {
+        background-color: darkgray;
+    }
 </style>
 <script src="js/flapjax-2.1.js"></script>
 <script src="js/jquery-1.7.1.min.js"></script>
@@ -74,7 +81,8 @@
             if (r.OK) {
                 var player = r.OK[1].PlayerIntrospection._player.Player;
                 var options = r.OK[2];
-                return {player: player, options: options};
+                var tiles = r.OK[3];
+                return {player: player, options: options, tiles: tiles};
             }
             return undefined;
         }).filterE(defined);
@@ -118,6 +126,7 @@
     function setupPlayView(playRequestReceiverE, sessionIdB, dataE, errorE) {
         var playerE = dataE.mapE(function (data) {return data.player});
         var optionsE = dataE.mapE(function (data) {return data.options});
+        var tilesE = dataE.mapE(function (data) {return data.tiles});
 
         setupPlayerView(playerE);
         var errorMessageE = mergeE(dataE.constantE(""), errorE.mapE(showConstructor));
@@ -127,10 +136,20 @@
             return refreshOptionView(options);
         });
         var chosenOptionE = switchE(chosenOptionEE);
-        chosenOptionE.mapE(function (option) {
+        chosenOptionE.mapE(sendActRequest);
+
+        function sendActRequest(option) {
+            console.log(JSON.stringify(option))
             var request = makeActRequest(sessionIdB.valueNow(), option);
             playRequestReceiverE.sendEvent(request)
-        });
+        }
+
+        function sendMoveRequest(x, y) {
+            var option = {"TakeACap":[parameter({"Position":[x, y]})]};
+            sendActRequest(option);
+        }
+        setupTilesView(tilesE, sendMoveRequest);
+
     }
     
     function setupPlayerView(playerE) {
@@ -155,6 +174,26 @@
                 table.append(row);
             });
         });
+    }
+
+    function setupTilesView(tilesE, moveTo) {
+        tilesE.mapE(function(tiles) {
+            var table = $("<table cellspacing='0'>");
+            table.addClass("map");
+            $.each(tiles, function(y, row) {
+                var tr = $("<tr>");
+                table.append(tr);
+                $.each(row, function(x, tile) {
+                    var td = $("<td>");
+                    tr.append(td);
+                    td.addClass(tile ? "tileRoad" : "tileBuilding");
+                    td.on('click', function () {moveTo(x, y)});
+                });
+            });
+            $("#mapView")
+                    .empty()
+                    .append(table);
+        })
     }
 
     // [Option None] -> Event (Option Some)
@@ -278,6 +317,13 @@
                 <table id="drugBagsTable"></table>
             </div>
         </fieldset>
+
+        <fieldset>
+            <legend>Map:</legend>
+            <div id="mapView">
+            </div>
+        </fieldset>
+
     </div>
 
 </body>
