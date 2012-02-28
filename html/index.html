@@ -24,6 +24,15 @@
     table.map td.tileRoad {
         background-color: darkgray;
     }
+    table.map td.tileBuilding {
+        background-color: cornsilk;
+    }
+    table.map td.tileRoad.tilePlayer {
+        background-color: coral;
+    }
+    table.map td.tileBuilding.tilePlayer {
+        background-color: lightcoral;
+    }
 </style>
 <script src="js/flapjax-2.1.js"></script>
 <script src="js/jquery-1.7.1.min.js"></script>
@@ -139,7 +148,6 @@
         chosenOptionE.mapE(sendActRequest);
 
         function sendActRequest(option) {
-            console.log(JSON.stringify(option))
             var request = makeActRequest(sessionIdB.valueNow(), option);
             playRequestReceiverE.sendEvent(request)
         }
@@ -148,7 +156,7 @@
             var option = {"TakeACap":[parameter({"Position":[x, y]})]};
             sendActRequest(option);
         }
-        setupTilesView(tilesE, sendMoveRequest);
+        setupMapView(dataE, sendMoveRequest);
 
     }
     
@@ -176,17 +184,20 @@
         });
     }
 
-    function setupTilesView(tilesE, moveTo) {
-        tilesE.mapE(function(tiles) {
+    function setupMapView(dataE, moveTo) {
+        dataE.mapE(function(data) {
+            var place = data.player._place;
+            var position = place[showConstructorName(place)][0].Position;
             var table = $("<table cellspacing='0'>");
             table.addClass("map");
-            $.each(tiles, function(y, row) {
+            $.each(data.tiles, function(y, row) {
                 var tr = $("<tr>");
                 table.append(tr);
                 $.each(row, function(x, tile) {
                     var td = $("<td>");
                     tr.append(td);
                     td.addClass(tile ? "tileRoad" : "tileBuilding");
+                    if (position[0] == x && position[1] == y) td.addClass("tilePlayer");
                     td.on('click', function () {moveTo(x, y)});
                 });
             });
