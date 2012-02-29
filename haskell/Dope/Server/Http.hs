@@ -9,7 +9,6 @@ import qualified Dope.State.Operation as Operation
 import Dope.Model.Player (Player)
 import Dope.State.GameState (GameState (GameState))
 import Dope.Logic.City
-import System.Random (mkStdGen)
 
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -23,6 +22,8 @@ import qualified System.Directory as D
 import Data.List (intercalate)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import System.Random (mkStdGen)
+import Data.Array
 import Data.Label
 import Text.JSON
 
@@ -60,7 +61,10 @@ parameter name request = do
 respond :: JSON a => a -> ServerPartT IO H.Response
 respond value = return $ toResponse $ encode $ showJSON $ value
 
-tiles = generateMap (mkStdGen 42) 30 20
+mapTiles =
+    let CityMap array = generateMap' (mkStdGen 42) 30 20 in
+    let ((x1, y1), (x2, y2)) = bounds array in
+    [[array ! (x, y) | x <- [x1 .. x2]] | y <- [y1 .. y2]]
 
 login :: SessionsVar (TVar Player) -> TVar GameState -> ServerPartT IO H.Response
 login sessionsVar stateVar = do
@@ -73,7 +77,7 @@ login sessionsVar stateVar = do
             sessionId <- liftIO $ newSession sessionsVar playerVar
             (possibilities, player) <- liftIO $ optionsIO playerVar stateVar
             let p = PlayerIntrospection.fromPlayer player
-            respond $ OK sessionId p possibilities tiles
+            respond $ OK sessionId p possibilities mapTiles
         Nothing -> 
             respond $ Failure "" PlayerDoesNotExist
 
@@ -88,7 +92,7 @@ play sessionsVar stateVar = do
             (error, player, possibilities) <- liftIO $ actAndReportOptions stateVar playerVar option
             let p = PlayerIntrospection.fromPlayer player
             case error of
-                Nothing -> respond $ OK nextSessionId p possibilities tiles
+                Nothing -> respond $ OK nextSessionId p possibilities mapTiles
                 Just reason -> respond $ Failure sessionId (IllegalAct reason)
         Nothing -> 
             respond (Failure sessionId NotLoggedIn)
